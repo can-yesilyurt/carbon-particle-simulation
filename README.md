@@ -1,5 +1,8 @@
 # Carbon sp² Self-Assembly: Watch Atoms Build Graphene Before Your Eyes
 
+Blog pors related:
+https://www.nanorescenter.com/post/carbon-sim
+
 What if you could watch carbon atoms find each other, align their bonds, and spontaneously assemble into the strongest material ever measured — all in your browser? No textbook diagrams, no static images. Just raw physics playing out in real time.
 
 ## What Is This?
