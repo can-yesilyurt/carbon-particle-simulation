@@ -23,15 +23,15 @@ Nothing is scripted. Every structure you see is an emergent result of two compet
 
 ## The Presets
 
-** Graphene Lattice** — The showcase. Strong repulsion, tight angular sharpness, and balanced attraction produce a honeycomb lattice that self-assembles from random initial conditions. This is the structure that makes graphene the wonder material it is.
+**Graphene Lattice** — The showcase. Strong repulsion, tight angular sharpness, and balanced attraction produce a honeycomb lattice that self-assembles from random initial conditions. This is the structure that makes graphene the wonder material it is.
 
-** Breathing Mode** — Turn this on and wait. The atoms slowly compress under strong attraction, forming a dense cluster. Then, without warning, a shockwave nucleates at a single point and rips through the lattice, scattering atoms outward. Friction slows them down, attraction pulls them back in, and the cycle repeats — roughly every five seconds. The kinetic energy plot lights up with sharp periodic spikes. It's mesmerizing.
+**Breathing Mode** — Turn this on and wait. The atoms slowly compress under strong attraction, forming a dense cluster. Then, without warning, a shockwave nucleates at a single point and rips through the lattice, scattering atoms outward. Friction slows them down, attraction pulls them back in, and the cycle repeats — roughly every five seconds. The kinetic energy plot lights up with sharp periodic spikes. It's mesmerizing.
 
-** Liquid Phase** — Low angular sharpness means the bonds don't care much about direction. Atoms clump together but can't form crystalline order. The result is a fluid-like state where clusters constantly form, merge, and break apart.
+**Liquid Phase** — Low angular sharpness means the bonds don't care much about direction. Atoms clump together but can't form crystalline order. The result is a fluid-like state where clusters constantly form, merge, and break apart.
 
-** Hot Gas** — Minimal friction and weak attraction. Atoms ricochet off each other and the walls, rarely forming lasting bonds. Pure kinetic chaos.
+**Hot Gas** — Minimal friction and weak attraction. Atoms ricochet off each other and the walls, rarely forming lasting bonds. Pure kinetic chaos.
 
-** Nano Clusters** — A tight bond distance with strong directional selectivity produces small crystalline islands — essentially graphene quantum dots — that self-assemble but remain separated. They drift, rotate, and occasionally exchange atoms, but never merge into a continuous sheet.
+**Nano Clusters** — A tight bond distance with strong directional selectivity produces small crystalline islands — essentially graphene quantum dots — that self-assemble but remain separated. They drift, rotate, and occasionally exchange atoms, but never merge into a continuous sheet.
 
 ## Play With It
 
