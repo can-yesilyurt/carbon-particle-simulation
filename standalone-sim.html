@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carbon sp² Self-Assembly Simulation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; font-family: system-ui, -apple-system, sans-serif; color: #e0f0ff; padding: 16px; }
+  .wrap { max-width: 832px; margin: 0 auto; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  h2 { font-size: 16px; font-weight: 600; }
+  .btns { display: flex; gap: 8px; }
+  .btn { border: none; border-radius: 6px; padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 500; color: #fff; }
+  .btn-play { background: #2a7a4a; }
+  .btn-pause { background: #c04040; }
+  .btn-reset { background: #2a3a50; color: #b0d0e8; border: 1px solid #3a5060; }
+  .presets { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .preset { background: #1a2636; color: #7090a8; border: 1px solid #2a3a4a; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s; }
+  .preset.active { background: #1a5a8a; color: #e0f0ff; border-color: #3090d0; }
+  canvas { display: block; border-radius: 8px; border: 1px solid #1a2a3a; width: 100%; }
+  .ke-wrap { margin-top: 10px; height: 80px; background: #0a0e17; border-radius: 8px; border: 1px solid #1a2a3a; padding: 6px 8px; position: relative; }
+  .ke-label { color: #5a7a90; font-size: 10px; }
+  .ke-canvas { width: 100%; height: 55px; display: block; }
+  .controls { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .slider-row label { color: #8ca0b8; font-size: 12px; min-width: 120px; text-align: right; }
+  .slider-row input[type=range] { flex: 1; accent-color: #50c8ff; height: 4px; }
+  .slider-row span { color: #b0d0e8; font-size: 12px; min-width: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h2>Carbon sp² Self-Assembly Simulation</h2>
+    <div class="btns">
+      <button class="btn btn-play" id="playBtn">▶ Play</button>
+      <button class="btn btn-reset" id="resetBtn">↺ Reset</button>
+    </div>
+  </div>
+  <div class="presets" id="presets"></div>
+  <canvas id="sim"></canvas>
+  <div class="ke-wrap">
+    <div class="ke-label">Kinetic Energy</div>
+    <canvas class="ke-canvas" id="keChart"></canvas>
+  </div>
+  <div class="controls" id="controls"></div>
+</div>
+<script>
+const PRESETS = {
+  graphene:   { label: "🔷 Graphene Lattice", n: 500, repStr: 3000, attStr: 400, eqDist: 29, sharpness: 8, torqueStr: 195, friction: 2.4, w: 800, h: 450 },
+  breathing:  { label: "💫 Breathing Mode",   n: 1000, repStr: 3000, attStr: 680, eqDist: 16, sharpness: 8, torqueStr: 200, friction: 2.4, w: 800, h: 450 },
+  liquid:     { label: "💧 Liquid Phase",      n: 600, repStr: 500, attStr: 200, eqDist: 20, sharpness: 1, torqueStr: 20, friction: 1.0, w: 800, h: 450 },
+  gas:        { label: "🔥 Hot Gas",           n: 300, repStr: 1500, attStr: 100, eqDist: 25, sharpness: 2, torqueStr: 30, friction: 0.2, w: 800, h: 450 },
+  clusters:   { label: "🧬 Nano Clusters",     n: 400, repStr: 3000, attStr: 250, eqDist: 8, sharpness: 7.5, torqueStr: 165, friction: 2.4, w: 800, h: 450 }
+};
+
+const SLIDERS = [
+  { key: "n", label: "Particles", min: 100, max: 1000, step: 10, unit: "" },
+  { key: "eqDist", label: "Bond Distance", min: 5, max: 50, step: 1, unit: "px" },
+  { key: "repStr", label: "Repulsion", min: 100, max: 3000, step: 50, unit: "" },
+  { key: "attStr", label: "Attraction", min: 50, max: 1000, step: 10, unit: "" },
+  { key: "sharpness", label: "Angular Sharpness", min: 1, max: 8, step: 0.5, unit: "" },
+  { key: "torqueStr", label: "Torque Strength", min: 10, max: 200, step: 5, unit: "" },
+  { key: "friction", label: "Friction", min: 0, max: 5, step: 0.1, unit: "" },
+  { key: "w", label: "Width", min: 400, max: 1200, step: 50, unit: "px" },
+  { key: "h", label: "Height", min: 300, max: 800, step: 50, unit: "px" }
+];
+
+const DAMPING = 0.97, ANG_DAMP = 0.94, KE_MAX = 200;
+let p = { ...PRESETS.graphene }, pts = [], running = false, raf = null, keHist = [], frame = 0, activePreset = "graphene";
+const simC = document.getElementById("sim"), ctx = simC.getContext("2d");
+const keC = document.getElementById("keChart"), keCtx = keC.getContext("2d");
+
+function angFactor(a, th, s) {
+  let m = -1;
+  for (let k = 0; k < 3; k++) { const c = Math.cos(a - th - k * 2.094395); if (c > m) m = c; }
+  return Math.pow(Math.max(0, m), s);
+}
+function closestDelta(a, th) {
+  let mb = Infinity, b = 0;
+  for (let k = 0; k < 3; k++) {
+    let d = a - th - k * 2.094395;
+    while (d > Math.PI) d -= 6.283185; while (d < -Math.PI) d += 6.283185;
+    if (Math.abs(d) < mb) { mb = Math.abs(d); b = d; }
+  }
+  return b;
+}
+function init() {
+  const mg = Math.max(5, p.eqDist); pts = [];
+  for (let i = 0; i < p.n; i++) pts.push({ x: mg + Math.random() * (p.w - 2 * mg), y: mg + Math.random() * (p.h - 2 * mg), vx: (Math.random() - .5), vy: (Math.random() - .5), th: Math.random() * 6.283185, om: 0 });
+  keHist = []; frame = 0;
+}
+function step() {
+  const { repStr: rS, attStr: aS, eqDist: eq, sharpness: sh, torqueStr: tS, friction: fr, w, h } = p;
+  const N = pts.length, cut = eq * 3, dt = 0.4, fm = Math.max(0, 1 - fr * dt);
+  const fx = new Float64Array(N), fy = new Float64Array(N), tq = new Float64Array(N);
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+    const dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y, r2 = dx * dx + dy * dy;
+    if (r2 < 1 || r2 > cut * cut) continue;
+    const r = Math.sqrt(r2), ux = dx / r, uy = dy / r, aij = Math.atan2(dy, dx), aji = aij + Math.PI;
+    if (r < eq * 1.2) { const o = (eq * 1.2 - r) / eq, rf = rS * o * o; fx[i] -= rf * ux; fy[i] -= rf * uy; fx[j] += rf * ux; fy[j] += rf * uy; }
+    const ai = angFactor(aij, pts[i].th, sh), aj = angFactor(aji, pts[j].th, sh), ang = ai * aj;
+    if (ang > .01) { const dr = (r - eq) / eq, dc = Math.exp(-Math.max(0, dr) * Math.max(0, dr) * 2), sf = aS * ang * dr * dc; fx[i] += sf * ux; fy[i] += sf * uy; fx[j] -= sf * ux; fy[j] -= sf * uy; }
+    const dw = Math.exp(-((r - eq) / eq) * ((r - eq) / eq) * 2);
+    tq[i] += tS * Math.sin(closestDelta(aij, pts[i].th)) * dw;
+    tq[j] += tS * Math.sin(closestDelta(aji, pts[j].th)) * dw;
+  }
+  let ke = 0;
+  for (let i = 0; i < N; i++) {
+    pts[i].vx = (pts[i].vx + fx[i] * dt) * DAMPING * fm; pts[i].vy = (pts[i].vy + fy[i] * dt) * DAMPING * fm;
+    pts[i].x += pts[i].vx * dt; pts[i].y += pts[i].vy * dt;
+    pts[i].om = (pts[i].om + tq[i] * dt) * ANG_DAMP * fm; pts[i].th += pts[i].om * dt;
+    ke += pts[i].vx * pts[i].vx + pts[i].vy * pts[i].vy;
+    if (pts[i].x < 3) { pts[i].x = 3; pts[i].vx *= -.3; } if (pts[i].x > w - 3) { pts[i].x = w - 3; pts[i].vx *= -.3; }
+    if (pts[i].y < 3) { pts[i].y = 3; pts[i].vy *= -.3; } if (pts[i].y > h - 3) { pts[i].y = h - 3; pts[i].vy *= -.3; }
+  }
+  return ke * .5;
+}
+function render() {
+  const { w, h, eqDist: eq, sharpness: sh } = p;
+  ctx.fillStyle = "#0a0e17"; ctx.fillRect(0, 0, w, h);
+  const bc = eq * 1.4;
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+    const dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y, r = Math.sqrt(dx * dx + dy * dy);
+    if (r > bc) continue;
+    const aij = Math.atan2(dy, dx), ai = angFactor(aij, pts[i].th, sh), aj = angFactor(aij + Math.PI, pts[j].th, sh), ang = ai * aj;
+    if (ang > .15) {
+      const al = Math.min(1, ang * .9) * (1 - (r - eq * .7) / (bc - eq * .7));
+      ctx.strokeStyle = `rgba(80,200,255,${Math.max(0, al).toFixed(2)})`; ctx.lineWidth = 1.5 + ang;
+      ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
+    }
+  }
+  for (const pt of pts) {
+    ctx.strokeStyle = "rgba(80,200,255,0.25)"; ctx.lineWidth = 1;
+    for (let k = 0; k < 3; k++) { const a = pt.th + k * 2.094395, l = eq * .35; ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(pt.x + Math.cos(a) * l, pt.y + Math.sin(a) * l); ctx.stroke(); }
+    const g = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, 5);
+    g.addColorStop(0, "rgba(120,220,255,0.9)"); g.addColorStop(.5, "rgba(60,160,220,0.4)"); g.addColorStop(1, "rgba(30,80,120,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pt.x, pt.y, 5, 0, 6.283185); ctx.fill();
+    ctx.fillStyle = "#b0e8ff"; ctx.beginPath(); ctx.arc(pt.x, pt.y, 2, 0, 6.283185); ctx.fill();
+  }
+}
+function renderKE() {
+  const cw = keC.width, ch = keC.height;
+  keCtx.fillStyle = "#0a0e17"; keCtx.fillRect(0, 0, cw, ch);
+  if (keHist.length < 2) return;
+  let mx = 1;
+  for (const v of keHist) if (v > mx) mx = v;
+  keCtx.strokeStyle = "#50c8ff"; keCtx.lineWidth = 1.5; keCtx.beginPath();
+  for (let i = 0; i < keHist.length; i++) {
+    const x = (i / (KE_MAX - 1)) * cw, y = ch - (keHist[i] / mx) * (ch - 4);
+    i === 0 ? keCtx.moveTo(x, y) : keCtx.lineTo(x, y);
+  }
+  keCtx.stroke();
+}
+function resizeKE() { const r = keC.getBoundingClientRect(); keC.width = r.width; keC.height = r.height; }
+function resizeSim() { simC.width = p.w; simC.height = p.h; simC.style.maxWidth = p.w + "px"; }
+
+function loop() {
+  if (!running) return;
+  while (pts.length < p.n) { const mg = Math.max(5, p.eqDist); pts.push({ x: mg + Math.random() * (p.w - 2 * mg), y: mg + Math.random() * (p.h - 2 * mg), vx: (Math.random() - .5), vy: (Math.random() - .5), th: Math.random() * 6.283185, om: 0 }); }
+  while (pts.length > p.n) pts.pop();
+  let ke = 0;
+  for (let s = 0; s < 3; s++) ke = step();
+  frame++;
+  if (frame % 3 === 0) { keHist.push(Math.round(ke)); if (keHist.length > KE_MAX) keHist.shift(); if (frame % 9 === 0) renderKE(); }
+  render();
+  raf = requestAnimationFrame(loop);
+}
+
+// UI
+const playBtn = document.getElementById("playBtn");
+playBtn.onclick = () => {
+  running = !running;
+  playBtn.textContent = running ? "⏸ Pause" : "▶ Play";
+  playBtn.className = running ? "btn btn-pause" : "btn btn-play";
+  if (running) raf = requestAnimationFrame(loop); else if (raf) cancelAnimationFrame(raf);
+};
+document.getElementById("resetBtn").onclick = () => { init(); resizeSim(); render(); renderKE(); };
+
+// Presets
+const presetsEl = document.getElementById("presets");
+function buildPresets() {
+  presetsEl.innerHTML = "";
+  for (const [k, v] of Object.entries(PRESETS)) {
+    const b = document.createElement("button"); b.className = "preset" + (k === activePreset ? " active" : ""); b.textContent = v.label;
+    b.onclick = () => { activePreset = k; p = { ...v }; init(); resizeSim(); render(); renderKE(); buildPresets(); buildSliders(); };
+    presetsEl.appendChild(b);
+  }
+}
+
+// Sliders
+const ctrlEl = document.getElementById("controls");
+function buildSliders() {
+  ctrlEl.innerHTML = "";
+  for (const s of SLIDERS) {
+    const row = document.createElement("div"); row.className = "slider-row";
+    const lbl = document.createElement("label"); lbl.textContent = s.label;
+    const inp = document.createElement("input"); inp.type = "range"; inp.min = s.min; inp.max = s.max; inp.step = s.step; inp.value = p[s.key];
+    const val = document.createElement("span"); val.textContent = p[s.key] + s.unit;
+    inp.oninput = () => { p[s.key] = Number(inp.value); val.textContent = p[s.key] + s.unit; activePreset = null; buildPresets(); if (s.key === "w" || s.key === "h") resizeSim(); };
+    row.append(lbl, inp, val); ctrlEl.appendChild(row);
+  }
+}
+
+init(); resizeSim(); resizeKE(); render(); buildPresets(); buildSliders();
+window.addEventListener("resize", () => { resizeKE(); renderKE(); });
+</script>
+</body>
+</html>
