@@ -40,3 +40,7 @@ The real fun is in tweaking. Slide the parameters while the simulation runs and 
 There are more phases hiding in this parameter space than the five presets — go find them.
 
 Enjoy playing with your carbons.
+
+## Usage
+
+Just download the html and open in the browser or try it here : https://www.nanorescenter.com/post/carbon-sim
